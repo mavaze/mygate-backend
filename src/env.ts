@@ -1,0 +1,8 @@
+export interface Env {
+  DB: D1Database;
+  FIREBASE_PROJECT_ID: string;
+  ENTITLEMENT_SIGNING_KEY_ID: string;
+  ENTITLEMENT_SIGNING_PRIVATE_KEY?: string;
+  FIREBASE_APP_CHECK_AUDIENCE?: string;
+  ALLOWED_CLOCK_SKEW_SECONDS?: string;
+}
