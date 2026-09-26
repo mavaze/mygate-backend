@@ -1,6 +1,6 @@
 {
   "name": "mygate-backend",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "My Gate control-plane API - Cloudflare Worker + D1 + Firebase Auth",
   "type": "module",
@@ -12,15 +12,16 @@
     "db:migrate:local": "wrangler d1 migrations apply mygate-control --local",
     "db:migrate:remote": "wrangler d1 migrations apply mygate-control --remote",
     "db:console:local": "wrangler d1 execute mygate-control --local --command",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "npm run generate-types && tsc --noEmit",
+    "generate-types": "wrangler types --include-env=false"
   },
   "dependencies": {
     "jose": "^6.1.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260924.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
-    "wrangler": "^4.137.0"
+    "wrangler": "^4.137.0",
+    "@types/node": "^24.5.2"
   }
 }

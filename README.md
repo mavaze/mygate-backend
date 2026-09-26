@@ -72,3 +72,7 @@ Authorization: Bearer <Firebase ID token>
 X-MyGate-Installation-Id: <random installation UUID>
 X-MyGate-App-Version: <version>
 ```
+
+## TypeScript runtime types
+
+Run `npm run generate-types` before typechecking.
