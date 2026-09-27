@@ -1,19 +1,19 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "mygate-control",
-	"main": "src/index.ts",
-	"compatibility_date": "2026-09-24",
-	"workers_dev": true,
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "mygate-control",
-			"database_id": "66814ae5-50f9-416b-94b5-eaee8b5609f7",
-			"migrations_dir": "migrations"
-		}
-	],
-	"vars": {
-		"FIREBASE_PROJECT_ID": "default-506211",
-		"ENTITLEMENT_SIGNING_KEY_ID": "mygate-entitlement-v1"
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mygate-control",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-24",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mygate-control",
+      "database_id": "66814ae5-50f9-416b-94b5-eaee8b5609f7",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "default-506211",
+    "ENTITLEMENT_SIGNING_KEY_ID": "mygate-entitlement-v1"
+  }
 }
