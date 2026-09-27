@@ -10,6 +10,7 @@ export interface ContextRecord {
   licenseId: string;
   licenseType: "PILOT" | "PRODUCTION";
   licenseStatus: "ACTIVE";
+  planCode: string;
   expiresAt: string;
 }
 
@@ -44,7 +45,7 @@ export async function resolveContext(
       u.id user_id, u.firebase_uid, su.society_id, su.role,
       d.id device_id,
       l.id license_id, l.license_type, l.status license_status,
-      l.expires_at
+      l.plan_code, l.starts_at, l.expires_at
     FROM users u
     JOIN society_users su ON su.user_id = u.id
     JOIN devices d ON d.user_id = u.id AND d.society_id = su.society_id
@@ -64,7 +65,7 @@ export async function resolveContext(
   }
 
   const now = Date.now();
-  if (row.license_status !== "ACTIVE" || Date.parse(row.expires_at) <= now) {
+  if (row.license_status !== "ACTIVE" || Date.parse(row.expires_at) <= now || Date.parse(row.starts_at ?? "1970-01-01T00:00:00.000Z") > now) {
     throw new ApiError(403, "LICENSE_INACTIVE", "License is not active");
   }
 
@@ -77,6 +78,7 @@ export async function resolveContext(
     licenseId: row.license_id,
     licenseType: row.license_type,
     licenseStatus: "ACTIVE",
+    planCode: row.plan_code,
     expiresAt: row.expires_at
   };
 }

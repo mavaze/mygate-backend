@@ -3,6 +3,8 @@ import { ApiError, jsonError } from "./errors";
 import { verifyFirebaseIdToken } from "./firebase";
 import { audit, getOrCreateUser, registerDevice, resolveContext } from "./db";
 import { signEntitlement } from "./security";
+import { getActivePlanCapabilities } from "./licensing";
+import { createLicense, createLicensePlan, createSociety, requirePlatformAdmin, setPlanCapability } from "./admin";
 
 const jsonHeaders = {
   "content-type": "application/json; charset=utf-8",
@@ -63,7 +65,7 @@ export default {
       if (url.pathname === "/v1/me" && request.method === "GET") {
         const memberships = await env.DB.prepare(`
           SELECT su.society_id societyId, s.name societyName, su.role,
-                 l.license_type licenseType, l.status licenseStatus, l.expires_at expiresAt
+                 l.license_type licenseType, l.status licenseStatus, l.plan_code planCode, l.expires_at expiresAt
           FROM society_users su
           JOIN societies s ON s.id = su.society_id
           LEFT JOIN licenses l ON l.society_id = s.id
@@ -129,6 +131,7 @@ export default {
           deviceId: context.deviceId,
           licenseType: context.licenseType,
           licenseStatus: "ACTIVE",
+          planCode: context.planCode,
           expiresAt: context.expiresAt,
           serverTime
         }, env);
@@ -137,11 +140,63 @@ export default {
           "UPDATE devices SET last_seen_at = ? WHERE id = ?"
         ).bind(serverTime, context.deviceId).run();
 
+        const capabilities = await getActivePlanCapabilities(env, context.planCode);
+
         return ok({
           entitlement,
           serverTime,
-          expiresAt: context.expiresAt
+          expiresAt: context.expiresAt,
+          licenseType: context.licenseType,
+          planCode: context.planCode,
+          capabilities
         });
+      }
+
+      if (url.pathname === "/v1/admin/plans" && request.method === "GET") {
+        await requirePlatformAdmin(env, user.id);
+        const plans = await env.DB.prepare(`
+          SELECT code, display_name displayName, description, status, created_at createdAt, updated_at updatedAt
+          FROM license_plans
+          ORDER BY code
+        `).all();
+        return ok({ plans: plans.results });
+      }
+
+      if (url.pathname === "/v1/admin/capabilities" && request.method === "GET") {
+        await requirePlatformAdmin(env, user.id);
+        const capabilities = await env.DB.prepare(`
+          SELECT code, display_name displayName, description, status, created_at createdAt, updated_at updatedAt
+          FROM capabilities
+          ORDER BY code
+        `).all();
+        return ok({ capabilities: capabilities.results });
+      }
+
+      if (url.pathname === "/v1/admin/plans" && request.method === "POST") {
+        await requirePlatformAdmin(env, user.id);
+        const body = await request.json().catch(() => ({})) as any;
+        return ok(await createLicensePlan(env, user.id, body), 201);
+      }
+
+      if (url.pathname.startsWith("/v1/admin/plans/") && url.pathname.endsWith("/capabilities") && request.method === "POST") {
+        await requirePlatformAdmin(env, user.id);
+        const planCode = decodeURIComponent(url.pathname.slice("/v1/admin/plans/".length, -"/capabilities".length)).toUpperCase();
+        const body = await request.json().catch(() => ({})) as any;
+        const capabilityCode = typeof body.capabilityCode === "string" ? body.capabilityCode.trim().toUpperCase() : "";
+        if (!capabilityCode) throw new ApiError(400, "INVALID_REQUEST", "capabilityCode is required");
+        return ok(await setPlanCapability(env, user.id, planCode, capabilityCode, body.config ?? {}));
+      }
+
+      if (url.pathname === "/v1/admin/societies" && request.method === "POST") {
+        await requirePlatformAdmin(env, user.id);
+        const body = await request.json().catch(() => ({})) as any;
+        return ok(await createSociety(env, user.id, body), 201);
+      }
+
+      if (url.pathname === "/v1/admin/licenses" && request.method === "POST") {
+        await requirePlatformAdmin(env, user.id);
+        const body = await request.json().catch(() => ({})) as any;
+        return ok(await createLicense(env, user.id, body), 201);
       }
 
       if (url.pathname === "/v1/devices/heartbeat" && request.method === "POST") {

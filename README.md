@@ -76,3 +76,8 @@ X-MyGate-App-Version: <version>
 ## TypeScript runtime types
 
 Run `npm run generate-types` before typechecking.
+
+
+## Licensing
+
+See `docs/licensing.md` for the plan/capability model and platform-admin endpoints.

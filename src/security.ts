@@ -9,6 +9,7 @@ export interface EntitlementPayload {
   deviceId: string;
   licenseType: "PILOT" | "PRODUCTION";
   licenseStatus: "ACTIVE";
+  planCode: string;
   expiresAt: string;
   serverTime: string;
 }
@@ -33,6 +34,6 @@ export async function signEntitlement(
       kid: env.ENTITLEMENT_SIGNING_KEY_ID
     })
     .setIssuedAt()
-    .setExpirationTime("15m")
+    .setExpirationTime(Math.min(Math.floor(Date.now() / 1000) + 15 * 60, Math.floor(new Date(payload.expiresAt).getTime() / 1000)))
     .sign(key);
 }
