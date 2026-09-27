@@ -2,7 +2,7 @@ import type { Env } from "./env";
 import { ApiError, jsonError } from "./errors";
 import { verifyFirebaseIdToken } from "./firebase";
 import { audit, getOrCreateUser, registerDevice, resolveContext } from "./db";
-import { signEntitlement } from "./security";
+import { signEntitlement, createInstallationHash } from "./security";
 import { getActivePlanCapabilities } from "./licensing";
 import { createLicense, createLicensePlan, createSociety, requirePlatformAdmin, setPlanCapability } from "./admin";
 
@@ -123,16 +123,29 @@ export default {
         const installationId = requireInstallationId(request);
         const context = await resolveContext(env, user.id, installationId);
 
+        const [installationHash, capabilities] = await Promise.all([
+          createInstallationHash(installationId),
+          getActivePlanCapabilities(env, context.planCode)
+        ]);
+
         const serverTime = new Date().toISOString();
+
         const entitlement = await signEntitlement({
           schemaVersion: 1,
+
           societyId: context.societyId,
           userId: context.userId,
           deviceId: context.deviceId,
+          installationHash,
+
+          licenseId: context.licenseId,
           licenseType: context.licenseType,
           licenseStatus: "ACTIVE",
+
           planCode: context.planCode,
-          expiresAt: context.expiresAt,
+          capabilities,
+
+          licenseExpiresAt: context.expiresAt,
           serverTime
         }, env);
 
@@ -140,15 +153,8 @@ export default {
           "UPDATE devices SET last_seen_at = ? WHERE id = ?"
         ).bind(serverTime, context.deviceId).run();
 
-        const capabilities = await getActivePlanCapabilities(env, context.planCode);
-
         return ok({
-          entitlement,
-          serverTime,
-          expiresAt: context.expiresAt,
-          licenseType: context.licenseType,
-          planCode: context.planCode,
-          capabilities
+          entitlement
         });
       }
 

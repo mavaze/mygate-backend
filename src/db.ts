@@ -97,9 +97,18 @@ export async function registerDevice(
   const now = new Date().toISOString();
 
   if (existing) {
+    if (existing.user_id !== userId) {
+      throw new ApiError(
+        409,
+        "DEVICE_ALREADY_REGISTERED",
+        "This installation is already registered to another user"
+      );
+    }
+
     await env.DB.prepare(
-      "UPDATE devices SET user_id = ?, app_version = ?, status = 'ACTIVE', last_seen_at = ? WHERE id = ?"
-    ).bind(userId, appVersion, now, existing.id).run();
+      "UPDATE devices SET app_version = ?, status = 'ACTIVE', last_seen_at = ? WHERE id = ?"
+    ).bind(appVersion, now, existing.id).run();
+
     return existing.id;
   }
 
