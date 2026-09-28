@@ -1,83 +1,65 @@
 # My Gate Backend
 
-> Increment 01 package dependencies were updated on 24 Sep 2026 to use the currently published Cloudflare Workers Types 5.x line. The earlier 4.20260912.0 version does not exist in npm.
+Cloudflare Worker + D1 control-plane backend for the My Gate Android application. The Admin Portal is added in the next project increment.
 
-Cloudflare Worker + D1 control-plane backend for the My Gate Android application.
+## Architecture constraints
 
-## Principles
+- Cloudflare Free tier only.
+- One Worker is used for the API; the next increment adds the lightweight Admin Portal to the same Worker.
+- One D1 database (`mygate-control`).
+- No custom domain required; use `workers.dev`.
+- No Pages, KV, R2, Queues, Durable Objects or separate API gateway unless a future requirement justifies one.
+- Operational society data (visitor images, society logo, contacts, visitor information, visits and tasks) remains in the society administrator's Google account.
+- Firebase Authentication establishes Google/Firebase identity for Platform Admin and Society Admin.
+- Watchmen are not Firebase users. Their authentication is controlled by the signed license capability `WATCHMAN_AUTH`: `LOCAL` or `CENTRAL`.
 
-- No DEV licensing bypass.
-- Development uses normal `PILOT` licenses.
-- Cloudflare D1 is authoritative for societies, memberships, devices and licenses.
-- Firebase Authentication establishes user identity.
-- The Android client never becomes the licensing authority.
-- No custom domain is required initially; deploy through `workers.dev`.
-- Operational Google Drive/Sheets/Contacts/Calendar data is not stored here.
+## Current model
 
-## Prerequisites
-
-- Node.js 20+
-- npm
-- Cloudflare account
-- Wrangler CLI (installed by npm)
-- Firebase project
+- One society has exactly one Society Admin Gmail/Firebase identity.
+- A Gmail address can belong to only one active society.
+- Platform Admins are global. The first one is bootstrapped manually in D1; multiple admins are supported as an extension point.
+- A society has one active commercial license at a time. Replacing a license suspends the previous active license.
+- Plans are reusable capability bundles. Capabilities can carry JSON configuration.
+- Android receives only a short-lived signed RS256 entitlement JWT as licensing proof.
 
 ## Local setup
 
 ```bash
 npm install
 cp .dev.vars.example .dev.vars
-# edit .dev.vars
+# edit the local values
 npm run db:migrate:local
 npm run dev
 ```
 
-Health endpoint:
+The Worker serves the portal at `/` and the API under `/v1/*`.
 
-```text
-GET http://localhost:8787/v1/health
+## Deployment
+
+```bash
+npm run db:migrate:remote
+npm run deploy
 ```
 
-The authenticated endpoints require a Firebase ID token and a registered D1 user/membership/device.
+Store the entitlement signing private key with Wrangler secret management. Never put it in Git or the web assets.
 
-## First Cloudflare deployment
+## First platform admin
 
-1. Create a D1 database named `mygate-control`.
-2. Put its database ID into `wrangler.jsonc`.
-3. Set the Firebase project ID.
-4. Store the entitlement signing private key as a Worker secret.
-5. Apply migrations:
-   `npm run db:migrate:remote`
-6. Deploy:
-   `npm run deploy`
+1. Sign in once with the intended Google/Firebase account so `/v1/me` creates the user row.
+2. Obtain the Firebase UID for that account.
+3. Run the SQL pattern in `scripts/bootstrap-platform-admin.sql.example` against the remote D1 database.
+4. Refresh the Admin Portal.
+
+There is intentionally no "first user becomes admin" API behavior.
+
+## API and Android contract
+
+See `docs/api-contract.md` for the Android-facing contract, signed entitlement claims, installation binding and central watchman session APIs.
+
+## Admin Portal
+
+See `docs/admin-portal.md` for the resource model and `docs/cloudflare-setup.md` for Firebase web configuration.
 
 ## Security
 
-Do not put private keys, Firebase service-account credentials, or Cloudflare API tokens in the Android app or Git.
-
-This first increment verifies Firebase ID tokens using Google's public JWKS. Production App Check / Play Integrity verification is the next security increment.
-
-## API
-
-- `GET /v1/health`
-- `GET /v1/me`
-- `POST /v1/devices/register`
-- `GET /v1/entitlement`
-- `POST /v1/devices/heartbeat`
-
-Required headers for device endpoints:
-
-```text
-Authorization: Bearer <Firebase ID token>
-X-MyGate-Installation-Id: <random installation UUID>
-X-MyGate-App-Version: <version>
-```
-
-## TypeScript runtime types
-
-Run `npm run generate-types` before typechecking.
-
-
-## Licensing
-
-See `docs/licensing.md` for the plan/capability model and platform-admin endpoints.
+The Worker is authoritative. A proxy/mock server can fabricate HTTP responses but cannot fabricate a valid entitlement signature without the Cloudflare-only RSA private key. This does not claim that a modified/repackaged APK is impossible; Play Integrity/App Check can be added later without changing the commercial data model.

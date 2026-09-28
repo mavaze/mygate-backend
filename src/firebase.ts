@@ -37,6 +37,7 @@ export async function verifyFirebaseIdToken(
     });
     const claims = payload as FirebaseClaims;
     if (!claims.sub) throw new Error("Missing subject");
+    if (!claims.email || claims.email_verified !== true) throw new Error("Verified email required");
     return claims;
   } catch {
     throw new ApiError(401, "INVALID_AUTH_TOKEN", "Invalid Firebase ID token");
